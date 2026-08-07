@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
-import { sendCampaignAction } from "@/actions/campaigns";
+import { sendCampaignAction, retryCampaignAction } from "@/actions/campaigns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,20 +23,26 @@ export function CampaignSendDialog({
   campaignId,
   campaignName,
   pendingCount,
+  failedCount,
   fromEmail,
 }: {
   campaignId: string;
   campaignName: string;
   pendingCount: number;
+  failedCount: number;
   fromEmail: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  const isRetry = pendingCount === 0 && failedCount > 0;
+  const recipientCount = isRetry ? failedCount : pendingCount;
+  const disabled = recipientCount === 0 || !fromEmail;
+
   function handleSend() {
     startTransition(async () => {
-      const result = await sendCampaignAction(campaignId);
+      const result = await (isRetry ? retryCampaignAction(campaignId) : sendCampaignAction(campaignId));
       if (result.error) {
         toast.error(result.error);
         return;
@@ -53,23 +59,26 @@ export function CampaignSendDialog({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button size="lg" className="gap-1.5" disabled={pendingCount === 0 || !fromEmail}>
-          <Send className="size-4" /> Send Campaign
+        <Button size="lg" className="gap-1.5" disabled={disabled}>
+          <Send className="size-4" /> {isRetry ? "Retry Failed" : "Send Campaign"}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Send &quot;{campaignName}&quot;?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isRetry ? "Retry" : "Send"} &quot;{campaignName}&quot;?
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            This sends the email to {pendingCount} recipient{pendingCount === 1 ? "" : "s"} from {fromEmail}. This
-            can&apos;t be undone.
+            {isRetry
+              ? `This resends the email to ${recipientCount} recipient${recipientCount === 1 ? "" : "s"} that previously failed, from ${fromEmail}. This can't be undone.`
+              : `This sends the email to ${recipientCount} recipient${recipientCount === 1 ? "" : "s"} from ${fromEmail}. This can't be undone.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleSend} disabled={pending} className="gap-1.5">
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Send Now
+            {isRetry ? "Retry Now" : "Send Now"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

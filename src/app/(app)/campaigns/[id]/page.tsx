@@ -28,11 +28,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const { campaign, recipients } = record;
   const canEdit = campaign.status === "DRAFT" || campaign.status === "FAILED";
   const pendingCount = recipients.filter((r) => r.status === "PENDING").length;
+  const failedCount = recipients.filter((r) => r.status === "FAILED").length;
   const unreadReplies = conversations.filter((c) => c.conversation.isUnread).length;
 
   return (
     <>
-      <CampaignDetailHeader campaign={campaign} pendingCount={pendingCount} />
+      <CampaignDetailHeader campaign={campaign} pendingCount={pendingCount} failedCount={failedCount} />
       <div className="p-4 sm:p-6">
         <Tabs defaultValue="compose">
           <TabsList>

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Trash2, Users } from "lucide-react";
-import { deleteCampaignAction } from "@/actions/campaigns";
+import { Copy, MoreHorizontal, Trash2, Users } from "lucide-react";
+import { deleteCampaignAction, duplicateCampaignAction } from "@/actions/campaigns";
 import { CAMPAIGN_STATUS_META } from "@/lib/labels";
 import { ToneBadge } from "@/components/common/tone-badge";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
@@ -21,6 +22,20 @@ import {
 
 export function CampaignCard({ campaign }: { campaign: CampaignRow }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const router = useRouter();
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    const result = await duplicateCampaignAction(campaign.id);
+    if ("error" in result) {
+      toast.error(result.error);
+      setDuplicating(false);
+      return;
+    }
+    toast.success("Campaign duplicated.");
+    router.push(`/campaigns/${result.id}`);
+  }
 
   return (
     <Card className="relative gap-3 py-0">
@@ -31,6 +46,9 @@ export function CampaignCard({ campaign }: { campaign: CampaignRow }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled={duplicating} onSelect={handleDuplicate}>
+            <Copy className="size-4" /> Duplicate
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
             <Trash2 className="size-4" /> Delete
           </DropdownMenuItem>

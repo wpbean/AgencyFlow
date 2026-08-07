@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { campaigns, campaignRecipients, contacts, eddCustomers } from "@/db/schema";
 import { campaignSchema } from "@/lib/validation";
@@ -177,4 +177,63 @@ export async function sendCampaignAction(campaignId: string): Promise<{ error?: 
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to send campaign." };
   }
+}
+
+// Resets FAILED recipients back to PENDING so a failed campaign can be re-sent,
+// then runs the normal send flow over them (and any still-PENDING recipients).
+export async function retryCampaignAction(campaignId: string): Promise<{ error?: string; sent?: number; failed?: number; skipped?: number }> {
+  try {
+    await db
+      .update(campaignRecipients)
+      .set({ status: "PENDING", error: null })
+      .where(and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, "FAILED")));
+
+    const result = await sendCampaign(campaignId);
+    revalidatePath(`/campaigns/${campaignId}`);
+    revalidatePath("/campaigns");
+    return result;
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to retry campaign." };
+  }
+}
+
+export async function duplicateCampaignAction(campaignId: string): Promise<{ id: string } | { error: string }> {
+  const [original] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
+  if (!original) return { error: "Campaign not found." };
+
+  const recipients = await db
+    .select()
+    .from(campaignRecipients)
+    .where(eq(campaignRecipients.campaignId, campaignId));
+
+  const [copy] = await db
+    .insert(campaigns)
+    .values({
+      name: `${original.name} (Copy)`,
+      subject: original.subject,
+      body: original.body,
+      design: original.design,
+      status: "DRAFT",
+      fromName: original.fromName,
+      fromEmail: original.fromEmail,
+      totalRecipients: recipients.length,
+    })
+    .returning();
+
+  if (recipients.length > 0) {
+    await db.insert(campaignRecipients).values(
+      recipients.map((r) => ({
+        campaignId: copy.id,
+        source: r.source,
+        contactId: r.contactId,
+        eddCustomerId: r.eddCustomerId,
+        email: r.email,
+        firstName: r.firstName,
+        lastName: r.lastName,
+      }))
+    );
+  }
+
+  revalidatePath("/campaigns");
+  return { id: copy.id };
 }

@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, MoreHorizontal, Trash2 } from "lucide-react";
-import { deleteCampaignAction } from "@/actions/campaigns";
+import { ArrowLeft, Copy, MoreHorizontal, Trash2 } from "lucide-react";
+import { deleteCampaignAction, duplicateCampaignAction } from "@/actions/campaigns";
 import { CAMPAIGN_STATUS_META } from "@/lib/labels";
 import { ToneBadge } from "@/components/common/tone-badge";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
@@ -20,9 +20,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function CampaignDetailHeader({ campaign, pendingCount }: { campaign: CampaignRow; pendingCount: number }) {
+export function CampaignDetailHeader({
+  campaign,
+  pendingCount,
+  failedCount,
+}: {
+  campaign: CampaignRow;
+  pendingCount: number;
+  failedCount: number;
+}) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const router = useRouter();
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    const result = await duplicateCampaignAction(campaign.id);
+    if ("error" in result) {
+      toast.error(result.error);
+      setDuplicating(false);
+      return;
+    }
+    toast.success("Campaign duplicated.");
+    router.push(`/campaigns/${result.id}`);
+  }
 
   return (
     <div className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background/95 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -43,6 +64,7 @@ export function CampaignDetailHeader({ campaign, pendingCount }: { campaign: Cam
           campaignId={campaign.id}
           campaignName={campaign.name}
           pendingCount={pendingCount}
+          failedCount={failedCount}
           fromEmail={campaign.fromEmail}
         />
         <DropdownMenu>
@@ -52,6 +74,9 @@ export function CampaignDetailHeader({ campaign, pendingCount }: { campaign: Cam
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem disabled={duplicating} onSelect={handleDuplicate}>
+              <Copy className="size-4" /> Duplicate Campaign
+            </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
               <Trash2 className="size-4" /> Delete Campaign
             </DropdownMenuItem>
