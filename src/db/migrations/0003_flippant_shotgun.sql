@@ -1,0 +1,1 @@
+ALTER TABLE `edd_integration` ADD `last_sync_debug` text;
