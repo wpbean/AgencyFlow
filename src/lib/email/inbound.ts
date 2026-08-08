@@ -6,12 +6,23 @@ import {
   contacts,
   conversations,
   eddCustomers,
+  messageAttachments,
   messages,
   type CorrelationMethod,
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
+import { attachmentStoragePath, MAX_ATTACHMENT_BYTES, saveAttachmentBytes } from "./attachment-storage";
 import { extractThreadTokens, getEmailHeader } from "./reply-threading";
 import { getResendReceivingClient } from "./resend";
+
+type InboundAttachment = {
+  id: string;
+  filename: string | null;
+  size: number;
+  content_type: string;
+  content_id: string | null;
+  content_disposition: string | null;
+};
 
 const PREVIEW_LENGTH = 140;
 
@@ -20,7 +31,9 @@ function stripHtml(html: string): string {
 }
 
 function preview(text: string | null, html: string | null): string {
-  const source = text ?? (html ? stripHtml(html) : "");
+  // Strip the U+FFFC object-replacement character Resend's plaintext body
+  // leaves where an inline image sat in the HTML — meaningless as text.
+  const source = (text ?? (html ? stripHtml(html) : "")).replace(/￼/g, "").trim();
   return source.slice(0, PREVIEW_LENGTH);
 }
 
@@ -169,6 +182,57 @@ async function findOrCreateConversation(params: {
   return created;
 }
 
+// Fetches each attachment's signed download URL and saves the bytes locally.
+// Failures are logged and skipped rather than thrown — a broken attachment
+// shouldn't drop the whole inbound message.
+async function saveInboundAttachments(messageId: string, resendEmailId: string, attachments: InboundAttachment[]): Promise<void> {
+  const resend = getResendReceivingClient();
+
+  for (const attachment of attachments) {
+    if (attachment.size > MAX_ATTACHMENT_BYTES) {
+      console.error(`Skipping inbound attachment ${attachment.id}: ${attachment.size} bytes exceeds the ${MAX_ATTACHMENT_BYTES} byte limit`);
+      continue;
+    }
+
+    try {
+      const { data: attachmentData, error } = await resend.emails.receiving.attachments.get({
+        emailId: resendEmailId,
+        id: attachment.id,
+      });
+      if (error || !attachmentData) {
+        console.error(`Could not fetch inbound attachment ${attachment.id}`, error);
+        continue;
+      }
+
+      const response = await fetch(attachmentData.download_url);
+      if (!response.ok) {
+        console.error(`Could not download inbound attachment ${attachment.id}: HTTP ${response.status}`);
+        continue;
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.byteLength > MAX_ATTACHMENT_BYTES) {
+        console.error(`Skipping inbound attachment ${attachment.id}: downloaded size exceeds the limit`);
+        continue;
+      }
+
+      const storagePath = attachmentStoragePath(messageId, attachment.id, attachment.filename);
+      await saveAttachmentBytes(storagePath, bytes);
+
+      await db.insert(messageAttachments).values({
+        messageId,
+        filename: attachment.filename,
+        contentType: attachment.content_type,
+        size: bytes.byteLength,
+        contentId: attachment.content_id,
+        isInline: attachment.content_disposition === "inline",
+        storagePath,
+      });
+    } catch (err) {
+      console.error(`Failed to save inbound attachment ${attachment.id}`, err);
+    }
+  }
+}
+
 export async function handleInboundEmail(emailId: string): Promise<void> {
   const resend = getResendReceivingClient();
   const { data: email, error } = await resend.emails.receiving.get(emailId);
@@ -205,6 +269,10 @@ export async function handleInboundEmail(emailId: string): Promise<void> {
   // A null `inserted` means the unique index on resendEmailId rejected a
   // duplicate insert — this is a retried webhook delivery already processed.
   if (!inserted) return;
+
+  if (email.attachments?.length) {
+    await saveInboundAttachments(inserted.id, email.id, email.attachments);
+  }
 
   await db
     .update(conversations)

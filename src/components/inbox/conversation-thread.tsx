@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Paperclip, Send } from "lucide-react";
 import { sendReplyAction, markConversationReadAction } from "@/actions/inbox";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,63 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ConversationLinkBadge } from "./conversation-link-badge";
 import type { ConversationWithMessages } from "@/db/queries/conversations";
+
+type MessageAttachment = ConversationWithMessages["messages"][number]["attachments"][number];
+
+// Resend's plaintext body leaves a U+FFFC object-replacement character where
+// an inline image sat in the HTML — redundant now that we render the actual
+// image as an attachment thumbnail below the text.
+function cleanBodyText(text: string | null): string {
+  return (text ?? "").replace(/￼/g, "").trim();
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function MessageAttachments({ attachments }: { attachments: MessageAttachment[] }) {
+  if (attachments.length === 0) return null;
+  const images = attachments.filter((a) => a.contentType.startsWith("image/"));
+  const files = attachments.filter((a) => !a.contentType.startsWith("image/"));
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {images.map((a) => (
+            <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- external attachment bytes served from our own API, not a Next-optimizable asset */}
+              <img
+                src={`/api/attachments/${a.id}`}
+                alt={a.filename || "Attached image"}
+                className="max-h-48 rounded-md border object-cover"
+              />
+            </a>
+          ))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {files.map((a) => (
+            <a
+              key={a.id}
+              href={`/api/attachments/${a.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-md border bg-background/60 px-2 py-1 text-xs hover:underline"
+            >
+              <Paperclip className="size-3.5 shrink-0" />
+              <span className="max-w-40 truncate">{a.filename || "Attachment"}</span>
+              <span className="text-muted-foreground">{formatFileSize(a.size)}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ConversationThread({ data }: { data: ConversationWithMessages }) {
   const { conversation, messages } = data;
@@ -58,7 +115,8 @@ export function ConversationThread({ data }: { data: ConversationWithMessages })
                   m.direction === "OUTBOUND" ? "bg-primary text-primary-foreground" : "bg-muted"
                 )}
               >
-                <p className="whitespace-pre-wrap">{m.bodyText || "(no content)"}</p>
+                <p className="whitespace-pre-wrap">{cleanBodyText(m.bodyText) || "(no content)"}</p>
+                <MessageAttachments attachments={m.attachments} />
                 <p
                   className={cn(
                     "mt-1 text-[11px]",

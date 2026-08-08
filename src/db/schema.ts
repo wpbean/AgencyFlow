@@ -616,3 +616,25 @@ export const messages = sqliteTable(
     index("messages_created_at_idx").on(t.createdAt),
   ]
 );
+
+export const messageAttachments = sqliteTable(
+  "message_attachments",
+  {
+    id: id(),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    filename: text("filename"),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    // Set when the attachment is referenced inline in the HTML body via `cid:`.
+    contentId: text("content_id"),
+    isInline: integer("is_inline", { mode: "boolean" }).notNull().default(false),
+    // Path to the saved file, relative to the attachments storage root.
+    storagePath: text("storage_path").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [index("message_attachments_message_id_idx").on(t.messageId)]
+);
