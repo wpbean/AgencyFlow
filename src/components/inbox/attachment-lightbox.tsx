@@ -84,12 +84,15 @@ export function AttachmentLightbox({
             </>
           )}
 
-          <div className="flex flex-1 items-center justify-center p-4 sm:p-12" onClick={onClose}>
+          <div
+            className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-12"
+            onClick={onClose}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- external attachment bytes served from our own API, not a Next-optimizable asset */}
             <img
               src={current.url}
               alt={current.alt}
-              className="max-h-full max-w-full rounded-md object-contain shadow-2xl"
+              className="max-h-[85vh] max-w-[90vw] rounded-md object-contain shadow-2xl sm:max-h-[80vh]"
               onClick={(e) => e.stopPropagation()}
             />
           </div>
