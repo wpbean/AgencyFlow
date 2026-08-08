@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ConversationLinkBadge } from "./conversation-link-badge";
+import { AttachmentLightbox, useAttachmentLightbox } from "./attachment-lightbox";
 import type { ConversationWithMessages } from "@/db/queries/conversations";
 
 type MessageAttachment = ConversationWithMessages["messages"][number]["attachments"][number];
@@ -28,25 +29,44 @@ function formatFileSize(bytes: number): string {
 }
 
 function MessageAttachments({ attachments }: { attachments: MessageAttachment[] }) {
+  const lightbox = useAttachmentLightbox();
   if (attachments.length === 0) return null;
   const images = attachments.filter((a) => a.contentType.startsWith("image/"));
   const files = attachments.filter((a) => !a.contentType.startsWith("image/"));
+  const lightboxImages = images.map((a) => ({
+    id: a.id,
+    url: `/api/attachments/${a.id}`,
+    alt: a.filename || "Attached image",
+  }));
 
   return (
     <div className="mt-2 flex flex-col gap-2">
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {images.map((a) => (
-            <a key={a.id} href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer">
+          {images.map((a, i) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => lightbox.open(i)}
+              className="cursor-zoom-in"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element -- external attachment bytes served from our own API, not a Next-optimizable asset */}
               <img
                 src={`/api/attachments/${a.id}`}
                 alt={a.filename || "Attached image"}
                 className="max-h-48 rounded-md border object-cover"
               />
-            </a>
+            </button>
           ))}
         </div>
+      )}
+      {lightbox.openIndex !== null && (
+        <AttachmentLightbox
+          images={lightboxImages}
+          index={lightbox.openIndex}
+          onIndexChange={lightbox.setIndex}
+          onClose={lightbox.close}
+        />
       )}
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2">
