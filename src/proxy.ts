@@ -21,7 +21,8 @@ export async function proxy(request: NextRequest) {
   if (
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/unsubscribe")
+    pathname.startsWith("/api/unsubscribe") ||
+    pathname.startsWith("/api/webhooks")
   ) {
     return NextResponse.next();
   }
