@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
 import { extractThreadTokens, getEmailHeader } from "./reply-threading";
-import { getResendClient } from "./resend";
+import { getResendReceivingClient } from "./resend";
 
 const PREVIEW_LENGTH = 140;
 
@@ -170,7 +170,7 @@ async function findOrCreateConversation(params: {
 }
 
 export async function handleInboundEmail(emailId: string): Promise<void> {
-  const resend = getResendClient();
+  const resend = getResendReceivingClient();
   const { data: email, error } = await resend.emails.receiving.get(emailId);
   if (error || !email) {
     throw new Error(error?.message ?? `Could not fetch inbound email ${emailId}`);
