@@ -630,8 +630,11 @@ export const messageAttachments = sqliteTable(
     // Set when the attachment is referenced inline in the HTML body via `cid:`.
     contentId: text("content_id"),
     isInline: integer("is_inline", { mode: "boolean" }).notNull().default(false),
-    // Object key in the R2 attachments bucket (see src/lib/email/r2.ts).
+    // Relative path under data/attachments/ on local disk (see src/lib/email/local-storage.ts).
     storagePath: text("storage_path").notNull(),
+    // Set once the cleanup job removes the underlying file (2-month retention). The row and its
+    // metadata (filename/size/contentType) are kept as a record; only the bytes on disk are gone.
+    purgedAt: integer("purged_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),

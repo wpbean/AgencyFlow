@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, Paperclip, Send } from "lucide-react";
+import { Clock, Loader2, Paperclip, Send } from "lucide-react";
 import { sendReplyAction, markConversationReadAction } from "@/actions/inbox";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,8 +31,12 @@ function formatFileSize(bytes: number): string {
 function MessageAttachments({ attachments }: { attachments: MessageAttachment[] }) {
   const lightbox = useAttachmentLightbox();
   if (attachments.length === 0) return null;
-  const images = attachments.filter((a) => a.contentType.startsWith("image/"));
-  const files = attachments.filter((a) => !a.contentType.startsWith("image/"));
+  // Attachments older than 2 months have their bytes removed by the cleanup job
+  // (purgedAt gets set) but the row — filename/size/type — is kept as a record.
+  const active = attachments.filter((a) => !a.purgedAt);
+  const purged = attachments.filter((a) => a.purgedAt);
+  const images = active.filter((a) => a.contentType.startsWith("image/"));
+  const files = active.filter((a) => !a.contentType.startsWith("image/"));
   const lightboxImages = images.map((a) => ({
     id: a.id,
     url: `/api/attachments/${a.id}`,
@@ -84,6 +88,21 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachment[] 
               <span className="max-w-40 truncate">{a.filename || "Attachment"}</span>
               <span className="text-muted-foreground">{formatFileSize(a.size)}</span>
             </a>
+          ))}
+        </div>
+      )}
+      {purged.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {purged.map((a) => (
+            <span
+              key={a.id}
+              title="Removed after 2 months to save disk space"
+              className="flex items-center gap-1.5 rounded-md border border-dashed bg-background/40 px-2 py-1 text-xs text-muted-foreground"
+            >
+              <Clock className="size-3.5 shrink-0" />
+              <span className="max-w-40 truncate">{a.filename || "Attachment"}</span>
+              <span>expired</span>
+            </span>
           ))}
         </div>
       )}

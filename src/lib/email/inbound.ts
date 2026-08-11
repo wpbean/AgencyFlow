@@ -11,7 +11,7 @@ import {
   type CorrelationMethod,
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
-import { attachmentStoragePath, MAX_ATTACHMENT_BYTES, saveAttachmentBytes } from "./attachment-storage";
+import { attachmentStoragePath, MAX_ATTACHMENT_BYTES, prepareAttachmentForStorage, saveAttachmentBytes } from "./attachment-storage";
 import { extractThreadTokens, getEmailHeader } from "./reply-threading";
 import { getResendReceivingClient } from "./resend";
 
@@ -215,14 +215,15 @@ async function saveInboundAttachments(messageId: string, resendEmailId: string, 
         continue;
       }
 
-      const storagePath = attachmentStoragePath(messageId, attachment.id, attachment.filename);
-      await saveAttachmentBytes(storagePath, bytes, attachment.content_type);
+      const prepared = await prepareAttachmentForStorage(bytes, attachment.content_type, attachment.filename);
+      const storagePath = attachmentStoragePath(messageId, attachment.id, prepared.filename);
+      await saveAttachmentBytes(storagePath, prepared.bytes);
 
       await db.insert(messageAttachments).values({
         messageId,
-        filename: attachment.filename,
-        contentType: attachment.content_type,
-        size: bytes.byteLength,
+        filename: prepared.filename,
+        contentType: prepared.contentType,
+        size: prepared.bytes.byteLength,
         contentId: attachment.content_id,
         isInline: attachment.content_disposition === "inline",
         storagePath,
