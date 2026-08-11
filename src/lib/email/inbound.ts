@@ -216,7 +216,7 @@ async function saveInboundAttachments(messageId: string, resendEmailId: string, 
       }
 
       const storagePath = attachmentStoragePath(messageId, attachment.id, attachment.filename);
-      await saveAttachmentBytes(storagePath, bytes);
+      await saveAttachmentBytes(storagePath, bytes, attachment.content_type);
 
       await db.insert(messageAttachments).values({
         messageId,

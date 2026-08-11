@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { GripVertical, Copy, Trash2, ChevronUp, ChevronDown, Image as ImageIcon } from "lucide-react";
 import { FONT_STACKS, type EmailBlock, type EmailDesign } from "@/lib/email/design-types";
-import { BLOCK_PADDING } from "@/lib/email/render-design";
+import { BLOCK_PADDING, sanitizeRichText } from "@/lib/email/render-design";
 import { Button } from "@/components/ui/button";
 
 function BlockContent({ block, styles }: { block: EmailBlock; styles: EmailDesign["styles"] }) {
@@ -35,11 +35,11 @@ function BlockContent({ block, styles }: { block: EmailBlock; styles: EmailDesig
             lineHeight: 1.6,
             color: block.color || styles.textColor,
             textAlign: align,
-            whiteSpace: "pre-wrap",
           }}
-        >
-          {block.text || "Paragraph text"}
-        </div>
+          dangerouslySetInnerHTML={{
+            __html: block.text ? sanitizeRichText(block.text) : "Paragraph text",
+          }}
+        />
       );
     case "list": {
       const Tag = block.style === "number" ? "ol" : "ul";

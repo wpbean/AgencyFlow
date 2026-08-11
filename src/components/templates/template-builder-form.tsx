@@ -73,7 +73,11 @@ export function TemplateBuilderForm({
         return;
       }
       toast.success(isEdit ? "Template updated." : "Template created.");
-      router.push("/templates");
+      if (isEdit) {
+        router.refresh();
+      } else {
+        router.push("/templates");
+      }
     });
   }
 

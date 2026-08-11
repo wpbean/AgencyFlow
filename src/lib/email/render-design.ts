@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import sanitizeHtml from "sanitize-html";
 import { renderTemplate } from "./index";
 import { FONT_STACKS, type EmailBlock, type EmailBlockType, type EmailDesign, type EmailDesignStyles } from "./design-types";
 
@@ -64,6 +65,40 @@ function textWithBreaks(text: string): string {
   return escapeHtml(text).replace(/\n/g, "<br />");
 }
 
+const RICH_TEXT_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: ["b", "strong", "i", "em", "u", "a", "br"],
+  allowedAttributes: { a: ["href", "target", "rel"] },
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", { target: "_blank", rel: "noopener noreferrer" }, true),
+  },
+};
+
+/** Sanitizes paragraph-block rich text HTML, tolerating legacy plain-text values with raw newlines. */
+export function sanitizeRichText(html: string): string {
+  return sanitizeHtml(html.replace(/\r\n|\n/g, "<br />"), RICH_TEXT_SANITIZE_OPTIONS);
+}
+
+/** Like renderTemplate, but HTML-escapes substituted values since the surrounding text is trusted HTML. */
+function renderTemplateIntoHtml(html: string, vars: Vars): string {
+  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key: string) => {
+    const value = vars[key];
+    return value ? escapeHtml(String(value)) : "";
+  });
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 function renderBlockContent(block: EmailBlock, styles: EmailDesignStyles, vars: Vars): string {
   const align = block.type !== "divider" && block.type !== "spacer" ? block.align : "left";
 
@@ -77,8 +112,8 @@ function renderBlockContent(block: EmailBlock, styles: EmailDesignStyles, vars: 
     case "paragraph": {
       const color = block.color || styles.textColor;
       const size = block.fontSize || 16;
-      const text = renderTemplate(block.text, vars);
-      return `<div style="font-size:${size}px;line-height:1.6;color:${color};text-align:${align};margin:0;">${textWithBreaks(text)}</div>`;
+      const html = renderTemplateIntoHtml(sanitizeRichText(block.text), vars);
+      return `<div style="font-size:${size}px;line-height:1.6;color:${color};text-align:${align};margin:0;">${html}</div>`;
     }
     case "list": {
       const color = block.color || styles.textColor;
@@ -151,7 +186,7 @@ function blockToText(block: EmailBlock, vars: Vars): string {
     case "heading":
       return renderTemplate(block.text, vars);
     case "paragraph":
-      return renderTemplate(block.text, vars);
+      return renderTemplate(stripHtml(block.text), vars);
     case "list":
       return block.items.map((item) => `- ${renderTemplate(item, vars)}`).join("\n");
     case "button":

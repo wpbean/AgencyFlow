@@ -17,6 +17,7 @@ export type HeadingBlock = {
 export type ParagraphBlock = {
   id: string;
   type: "paragraph";
+  /** Rich text HTML (bold/italic/link + <br /> line breaks), sanitized before it's ever sent. */
   text: string;
   align: EmailBlockAlign;
   color?: string;

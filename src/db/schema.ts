@@ -630,7 +630,7 @@ export const messageAttachments = sqliteTable(
     // Set when the attachment is referenced inline in the HTML body via `cid:`.
     contentId: text("content_id"),
     isInline: integer("is_inline", { mode: "boolean" }).notNull().default(false),
-    // Path to the saved file, relative to the attachments storage root.
+    // Object key in the R2 attachments bucket (see src/lib/email/r2.ts).
     storagePath: text("storage_path").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()

@@ -52,8 +52,10 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachment[] 
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- external attachment bytes served from our own API, not a Next-optimizable asset */}
               <img
-                src={`/api/attachments/${a.id}`}
+                src={`/api/attachments/${a.id}?variant=thumb`}
                 alt={a.filename || "Attached image"}
+                loading="lazy"
+                decoding="async"
                 className="max-h-48 rounded-md border object-cover"
               />
             </button>

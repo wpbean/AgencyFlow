@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Upload } from "lucide-react";
 import type { EmailBlock, EmailBlockType, EmailDesign, EmailDesignStyles } from "@/lib/email/design-types";
 import { createDefaultBlock, renderDesignToHtml, wrapEmailPreviewDocument } from "@/lib/email/render-design";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { BlockPalette } from "./block-palette";
 import { DesignCanvas } from "./design-canvas";
 import { BlockInspector } from "./block-inspector";
 import { StyleInspector } from "./style-inspector";
+import { ImportDesignDialog } from "./import-design-dialog";
 
 const SAMPLE_VARS = {
   first_name: "John",
@@ -22,6 +23,7 @@ const SAMPLE_VARS = {
 export function EmailDesignEditor({ value, onChange }: { value: EmailDesign; onChange: (design: EmailDesign) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const selectedBlock = value.blocks.find((b) => b.id === selectedId) || null;
 
@@ -80,12 +82,15 @@ export function EmailDesignEditor({ value, onChange }: { value: EmailDesign; onC
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+          <Upload className="size-3.5" /> Import content
+        </Button>
         <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setPreviewOpen(true)}>
           <Eye className="size-3.5" /> Preview
         </Button>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[180px_1fr_300px]">
+      <div className="grid gap-4 lg:grid-cols-[180px_1fr_420px]">
         <BlockPalette onAdd={addBlock} />
         <DesignCanvas
           design={value}
@@ -121,6 +126,16 @@ export function EmailDesignEditor({ value, onChange }: { value: EmailDesign; onC
           />
         </DialogContent>
       </Dialog>
+
+      <ImportDesignDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        currentStyles={value.styles}
+        onImport={(design) => {
+          onChange(design);
+          setSelectedId(null);
+        }}
+      />
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { TEMPLATE_CATEGORY_META } from "@/lib/labels";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
 import type { emailTemplates } from "@/db/schema";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,47 +42,51 @@ export function TemplateCard({ template }: { template: Template }) {
   );
 
   return (
-    <Card className="flex flex-col gap-2">
-      <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
-        <div className="min-w-0">
-          <p className="truncate font-medium">{template.name}</p>
-          <Badge variant="secondary" className="mt-1 font-normal">
-            {TEMPLATE_CATEGORY_META[template.category].label}
-          </Badge>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7 shrink-0">
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
-              <Eye className="size-4" /> Preview
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/templates/${template.id}/edit`}>
-                <Pencil className="size-4" /> Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={async () => {
-                await duplicateTemplateAction(template.id);
-                toast.success("Template duplicated.");
-              }}
-            >
-              <Copy className="size-4" /> Duplicate
-            </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
-              <Trash2 className="size-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <Card className="relative gap-3 py-0">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="absolute top-3 right-3 size-7 shrink-0">
+            <MoreHorizontal className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
+            <Eye className="size-4" /> Preview
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/templates/${template.id}/edit`}>
+              <Pencil className="size-4" /> Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={async () => {
+              await duplicateTemplateAction(template.id);
+              toast.success("Template duplicated.");
+            }}
+          >
+            <Copy className="size-4" /> Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+            <Trash2 className="size-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CardHeader className="space-y-0 pt-4 pr-8">
+        <CardTitle>
+          <Link href={`/templates/${template.id}/edit`} className="block truncate hover:underline">
+            {template.name}
+          </Link>
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="truncate text-sm font-medium">{template.subject}</p>
-        <p className="mt-1 line-clamp-3 text-sm text-muted-foreground whitespace-pre-wrap">{template.body}</p>
+      <CardContent className="flex flex-col gap-1">
+        <p className="truncate text-sm font-medium text-foreground/80">{template.subject}</p>
+        <p className="line-clamp-2 text-sm text-muted-foreground whitespace-pre-wrap">{template.body}</p>
       </CardContent>
+      <CardFooter className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="secondary" className="font-normal">
+          {TEMPLATE_CATEGORY_META[template.category].label}
+        </Badge>
+      </CardFooter>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className={previewHtml ? "sm:max-w-2xl" : "sm:max-w-lg"}>

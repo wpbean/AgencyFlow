@@ -13,7 +13,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <PageHeader title="Edit Email Template" subtitle={template.name} />
+      <PageHeader title="Edit Email Template" subtitle={template.name} backHref="/templates" />
       <TemplateBuilderForm template={template} savedTemplates={savedTemplates} />
     </>
   );
