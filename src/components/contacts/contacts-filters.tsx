@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { X, Star, Mail, Phone } from "lucide-react";
+import { X, Star, Mail, Phone, MailX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MultiSelectFilter } from "@/components/common/multi-select-filter";
 import { SearchInput } from "@/components/common/search-input";
@@ -32,6 +32,7 @@ export function ContactsFilters({
   const isPrimary = searchParams.get("isPrimary") === "1";
   const hasEmail = searchParams.get("hasEmail") === "1";
   const hasPhone = searchParams.get("hasPhone") === "1";
+  const excludeUnsubscribed = searchParams.get("excludeUnsubscribed") === "1";
 
   function updateParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams);
@@ -52,7 +53,8 @@ export function ContactsFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ]);
 
-  const hasFilters = agencyId.length || jobTitle.length || source.length || isPrimary || hasEmail || hasPhone || q;
+  const hasFilters =
+    agencyId.length || jobTitle.length || source.length || isPrimary || hasEmail || hasPhone || excludeUnsubscribed || q;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -98,6 +100,14 @@ export function ContactsFilters({
         onClick={() => updateParams({ hasPhone: hasPhone ? null : "1" })}
       >
         <Phone className="size-3.5" /> Has phone
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn("gap-1.5", excludeUnsubscribed && "border-primary/50 text-foreground")}
+        onClick={() => updateParams({ excludeUnsubscribed: excludeUnsubscribed ? null : "1" })}
+      >
+        <MailX className="size-3.5" /> Hide unsubscribed
       </Button>
       {!!hasFilters && (
         <Button

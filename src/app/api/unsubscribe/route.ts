@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { emailSuppressions } from "@/db/schema";
+import { emailSuppressions, campaignEvents, campaignRecipients } from "@/db/schema";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe";
 
 function page(body: string) {
@@ -12,16 +13,26 @@ function page(body: string) {
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
-  const email = token ? verifyUnsubscribeToken(token) : null;
+  const parsed = token ? verifyUnsubscribeToken(token) : null;
 
-  if (!email) {
+  if (!parsed) {
     return page("This unsubscribe link is invalid or has expired.");
   }
 
+  const { email, campaignId, recipientId } = parsed;
+
   await db
     .insert(emailSuppressions)
-    .values({ email: email.toLowerCase(), reason: "unsubscribed" })
+    .values({ email: email.toLowerCase(), reason: "unsubscribed", campaignId: campaignId ?? null })
     .onConflictDoNothing();
+
+  if (campaignId && recipientId) {
+    await db
+      .update(campaignRecipients)
+      .set({ unsubscribedAt: new Date() })
+      .where(eq(campaignRecipients.id, recipientId));
+    await db.insert(campaignEvents).values({ campaignId, recipientId, type: "UNSUBSCRIBED" });
+  }
 
   return page(`${email} has been unsubscribed and will not receive further campaign emails.`);
 }

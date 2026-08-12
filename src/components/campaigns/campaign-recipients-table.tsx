@@ -120,9 +120,12 @@ function RecipientRow({
       <TableCell className="text-muted-foreground">{recipient.email}</TableCell>
       <TableCell className="text-muted-foreground">{recipient.source === "CONTACT" ? "Contact" : "EDD Customer"}</TableCell>
       <TableCell>
-        <ToneBadge tone={CAMPAIGN_RECIPIENT_STATUS_META[recipient.status].tone}>
-          {CAMPAIGN_RECIPIENT_STATUS_META[recipient.status].label}
-        </ToneBadge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ToneBadge tone={CAMPAIGN_RECIPIENT_STATUS_META[recipient.status].tone}>
+            {CAMPAIGN_RECIPIENT_STATUS_META[recipient.status].label}
+          </ToneBadge>
+          {recipient.isUnsubscribed && <ToneBadge tone="warning">Unsubscribed</ToneBadge>}
+        </div>
         {recipient.error && <p className="mt-0.5 text-xs text-danger">{recipient.error}</p>}
       </TableCell>
       {canEdit && (

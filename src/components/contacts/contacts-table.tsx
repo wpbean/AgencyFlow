@@ -9,6 +9,7 @@ import type { ContactRow } from "@/db/queries/contacts";
 import { ContactFormDialog } from "./contact-form-dialog";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
 import { EmptyState } from "@/components/common/empty-state";
+import { ToneBadge } from "@/components/common/tone-badge";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -110,9 +111,12 @@ function ContactTableRow({
       <TableCell className="text-muted-foreground">{contact.source || "—"}</TableCell>
       <TableCell>
         {contact.email ? (
-          <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary">
-            <Mail className="size-3.5" /> {contact.email}
-          </a>
+          <div className="flex items-center gap-2">
+            <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary">
+              <Mail className="size-3.5" /> {contact.email}
+            </a>
+            {contact.isUnsubscribed && <ToneBadge tone="warning">Unsubscribed</ToneBadge>}
+          </div>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}

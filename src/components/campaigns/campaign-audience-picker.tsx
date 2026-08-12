@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus, MailX } from "lucide-react";
 import { searchAudienceAction, addRecipientsAction } from "@/actions/campaigns";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MultiSelectFilter } from "@/components/common/multi-select-filter";
 import { SearchInput } from "@/components/common/search-input";
+import { ToneBadge } from "@/components/common/tone-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
-type AudienceRow = { id: string; firstName: string | null; lastName: string | null; email: string | null };
+type AudienceRow = { id: string; firstName: string | null; lastName: string | null; email: string | null; isUnsubscribed: boolean };
 
 type Props =
   | {
@@ -40,6 +42,7 @@ export function CampaignAudiencePicker(props: Props) {
   const [jobTitle, setJobTitle] = useState<string[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string[]>([]);
   const [productId, setProductId] = useState<string[]>([]);
+  const [includeUnsubscribed, setIncludeUnsubscribed] = useState(false);
 
   const [rows, setRows] = useState<AudienceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +53,11 @@ export function CampaignAudiencePicker(props: Props) {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- standard fetch-on-change loading flag
     setLoading(true);
+    const excludeUnsubscribed = !includeUnsubscribed;
     const filters =
-      source === "CONTACT" ? { q: debouncedQ || undefined, agencyId, jobTitle, source: sourceFilter } : { q: debouncedQ || undefined, productId };
+      source === "CONTACT"
+        ? { q: debouncedQ || undefined, agencyId, jobTitle, source: sourceFilter, excludeUnsubscribed }
+        : { q: debouncedQ || undefined, productId, excludeUnsubscribed };
 
     searchAudienceAction(source, filters).then((result) => {
       if (cancelled) return;
@@ -62,7 +68,7 @@ export function CampaignAudiencePicker(props: Props) {
     return () => {
       cancelled = true;
     };
-  }, [source, debouncedQ, agencyId, jobTitle, sourceFilter, productId]);
+  }, [source, debouncedQ, agencyId, jobTitle, sourceFilter, productId, includeUnsubscribed]);
 
   const selectable = rows.filter((r) => r.email && !existingEmails.has(r.email.toLowerCase()));
   const allSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.id));
@@ -124,6 +130,15 @@ export function CampaignAudiencePicker(props: Props) {
             onChange={setProductId}
           />
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("gap-1.5", includeUnsubscribed && "border-primary/50 text-foreground")}
+          onClick={() => setIncludeUnsubscribed((v) => !v)}
+        >
+          <MailX className="size-3.5" />
+          {includeUnsubscribed ? "Showing unsubscribed" : "Unsubscribed hidden"}
+        </Button>
       </div>
 
       <div className="flex items-center justify-between gap-2">
@@ -180,8 +195,11 @@ export function CampaignAudiencePicker(props: Props) {
                     {r.firstName} {r.lastName ?? ""}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {r.email || "No email"}
-                    {alreadyAdded && <span className="ml-2 text-xs text-muted-foreground">(added)</span>}
+                    <div className="flex items-center gap-2">
+                      {r.email || "No email"}
+                      {alreadyAdded && <span className="text-xs text-muted-foreground">(added)</span>}
+                      {r.isUnsubscribed && <ToneBadge tone="warning">Unsubscribed</ToneBadge>}
+                    </div>
                   </TableCell>
                 </TableRow>
               );

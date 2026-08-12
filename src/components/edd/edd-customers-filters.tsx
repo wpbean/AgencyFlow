@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { X, UserCheck } from "lucide-react";
+import { X, UserCheck, MailX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MultiSelectFilter } from "@/components/common/multi-select-filter";
 import { SearchInput } from "@/components/common/search-input";
@@ -20,6 +20,7 @@ export function EddCustomersFilters({ productOptions }: { productOptions: { id: 
 
   const productId = searchParams.get("productId")?.split(",").filter(Boolean) ?? [];
   const synced = searchParams.get("synced");
+  const excludeUnsubscribed = searchParams.get("excludeUnsubscribed") === "1";
 
   function updateParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams);
@@ -40,7 +41,7 @@ export function EddCustomersFilters({ productOptions }: { productOptions: { id: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ]);
 
-  const hasFilters = productId.length || synced || q;
+  const hasFilters = productId.length || synced || excludeUnsubscribed || q;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -58,6 +59,14 @@ export function EddCustomersFilters({ productOptions }: { productOptions: { id: 
         onClick={() => updateParams({ synced: synced === "0" ? null : "0" })}
       >
         <UserCheck className="size-3.5" /> Not in Contacts
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn("gap-1.5", excludeUnsubscribed && "border-primary/50 text-foreground")}
+        onClick={() => updateParams({ excludeUnsubscribed: excludeUnsubscribed ? null : "1" })}
+      >
+        <MailX className="size-3.5" /> Hide unsubscribed
       </Button>
       {!!hasFilters && (
         <Button

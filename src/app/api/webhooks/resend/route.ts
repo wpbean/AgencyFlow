@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getResendClient } from "@/lib/email/resend";
 import { handleInboundEmail } from "@/lib/email/inbound";
+import { handleCampaignEvent, isCampaignWebhookEvent } from "@/lib/email/webhook-events";
 
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
@@ -23,14 +24,14 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 401 });
   }
 
-  if (event.type !== "email.received") {
-    return new NextResponse(null, { status: 200 });
-  }
-
   try {
-    await handleInboundEmail(event.data.email_id);
+    if (event.type === "email.received") {
+      await handleInboundEmail(event.data.email_id);
+    } else if (isCampaignWebhookEvent(event)) {
+      await handleCampaignEvent(event);
+    }
   } catch (err) {
-    console.error("Inbound email processing failed", err);
+    console.error(`Resend webhook processing failed for event "${event.type}"`, err);
     return new NextResponse(null, { status: 500 });
   }
 

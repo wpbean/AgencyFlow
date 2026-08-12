@@ -10,6 +10,7 @@ import { CAMPAIGN_STATUS_META } from "@/lib/labels";
 import { ToneBadge } from "@/components/common/tone-badge";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
 import type { CampaignRow } from "@/db/queries/campaigns";
+import type { CampaignRateSummary } from "@/db/queries/campaign-analytics";
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function CampaignCard({ campaign }: { campaign: CampaignRow }) {
+export function CampaignCard({ campaign, rates }: { campaign: CampaignRow; rates?: CampaignRateSummary }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const router = useRouter();
@@ -65,16 +66,24 @@ export function CampaignCard({ campaign }: { campaign: CampaignRow }) {
         <p className="truncate text-sm font-medium text-foreground/80">{campaign.subject}</p>
         <p className="line-clamp-2 text-sm text-muted-foreground whitespace-pre-wrap">{campaign.body}</p>
       </CardContent>
-      <CardFooter className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <Users className="size-3.5" />
-          {campaign.totalRecipients} recipient{campaign.totalRecipients === 1 ? "" : "s"}
-          {campaign.status === "SENT" && ` · ${campaign.sentCount} sent`}
-          {campaign.failedCount > 0 && ` · ${campaign.failedCount} failed`}
+      <CardFooter className="mt-1 flex flex-col items-start gap-1.5 text-xs text-muted-foreground">
+        <div className="flex w-full items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Users className="size-3.5" />
+            {campaign.totalRecipients} recipient{campaign.totalRecipients === 1 ? "" : "s"}
+            {campaign.status === "SENT" && ` · ${campaign.sentCount} sent`}
+            {campaign.failedCount > 0 && ` · ${campaign.failedCount} failed`}
+          </div>
+          <ToneBadge tone={CAMPAIGN_STATUS_META[campaign.status].tone} className="shrink-0">
+            {CAMPAIGN_STATUS_META[campaign.status].label}
+          </ToneBadge>
         </div>
-        <ToneBadge tone={CAMPAIGN_STATUS_META[campaign.status].tone} className="shrink-0">
-          {CAMPAIGN_STATUS_META[campaign.status].label}
-        </ToneBadge>
+        {rates && campaign.sentCount > 0 && (
+          <div className="flex items-center gap-3">
+            <span>Opens {rates.openRate}%</span>
+            <span>Clicks {rates.clickRate}%</span>
+          </div>
+        )}
       </CardFooter>
 
       <ConfirmDeleteDialog

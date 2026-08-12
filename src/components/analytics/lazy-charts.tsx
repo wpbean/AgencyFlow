@@ -16,3 +16,8 @@ export const LazyLineChart = dynamic(() => import("./simple-line-chart").then((m
   ssr: false,
   loading: ChartSkeleton,
 });
+
+export const LazyCampaignEventsChart = dynamic(() => import("./campaign-events-chart").then((m) => m.CampaignEventsChart), {
+  ssr: false,
+  loading: ChartSkeleton,
+});

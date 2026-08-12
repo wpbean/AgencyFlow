@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/empty-state";
+import { ToneBadge } from "@/components/common/tone-badge";
 import type { EddCustomerRow } from "@/db/queries/edd-customers";
 
 export function EddCustomersTable({
@@ -61,9 +62,12 @@ export function EddCustomersTable({
                 </TableCell>
                 <TableCell className="font-medium">{name || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell>
-                  <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary">
-                    <Mail className="size-3.5" /> {c.email}
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary">
+                      <Mail className="size-3.5" /> {c.email}
+                    </a>
+                    {c.isUnsubscribed && <ToneBadge tone="warning">Unsubscribed</ToneBadge>}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

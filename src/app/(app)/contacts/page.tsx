@@ -28,6 +28,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
     isPrimary: sp.isPrimary === "1" ? true : undefined,
     hasEmail: sp.hasEmail === "1" ? true : undefined,
     hasPhone: sp.hasPhone === "1" ? true : undefined,
+    excludeUnsubscribed: sp.excludeUnsubscribed === "1" ? true : undefined,
   };
 
   const [{ rows, total, pageSize }, agencyOptions, filterOptions] = await Promise.all([

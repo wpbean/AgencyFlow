@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/db";
-import { contacts, agencies } from "@/db/schema";
-import { eq, desc, asc, like, or, and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { contacts, agencies, emailSuppressions } from "@/db/schema";
+import { eq, desc, asc, like, or, and, inArray, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 
 export type ContactListFilters = {
   q?: string;
@@ -11,6 +11,7 @@ export type ContactListFilters = {
   isPrimary?: boolean;
   hasEmail?: boolean;
   hasPhone?: boolean;
+  excludeUnsubscribed?: boolean;
 };
 
 export type ContactSort = "created" | "updated" | "name";
@@ -30,9 +31,17 @@ const contactSelection = {
   isPrimary: contacts.isPrimary,
   source: contacts.source,
   notes: contacts.notes,
+  // SQLite has no boolean type — .mapWith(Boolean) converts the raw 0/1 it
+  // returns into a real JS boolean, otherwise `0 && <Badge/>` renders a stray "0".
+  isUnsubscribed: sql<boolean>`${emailSuppressions.email} is not null`.mapWith(Boolean),
   createdAt: contacts.createdAt,
   updatedAt: contacts.updatedAt,
 };
+
+// Joined (not stored) on lowercased email in every query below, so contact rows
+// carry a live "unsubscribed" status without duplicating it as a stored column —
+// suppression (emailSuppressions) stays the single source of truth.
+const suppressionJoinCondition = sql`lower(${contacts.email}) = ${emailSuppressions.email}`;
 
 function buildConditions(filters: ContactListFilters): SQL[] {
   const conditions: SQL[] = [];
@@ -48,6 +57,7 @@ function buildConditions(filters: ContactListFilters): SQL[] {
   if (filters.isPrimary) conditions.push(eq(contacts.isPrimary, true));
   if (filters.hasEmail) conditions.push(sql`${contacts.email} is not null and ${contacts.email} != ''`);
   if (filters.hasPhone) conditions.push(sql`${contacts.phone} is not null and ${contacts.phone} != ''`);
+  if (filters.excludeUnsubscribed) conditions.push(isNull(emailSuppressions.email));
   return conditions;
 }
 
@@ -65,6 +75,7 @@ export async function listContacts(filters: ContactListFilters, sort: ContactSor
       .select(contactSelection)
       .from(contacts)
       .leftJoin(agencies, eq(contacts.agencyId, agencies.id))
+      .leftJoin(emailSuppressions, suppressionJoinCondition)
       .where(where)
       .orderBy(orderBy)
       .limit(PAGE_SIZE)
@@ -73,6 +84,7 @@ export async function listContacts(filters: ContactListFilters, sort: ContactSor
       .select({ count: sql<number>`count(*)` })
       .from(contacts)
       .leftJoin(agencies, eq(contacts.agencyId, agencies.id))
+      .leftJoin(emailSuppressions, suppressionJoinCondition)
       .where(where),
   ]);
 
@@ -87,6 +99,7 @@ export async function listContactsForExport(filters: ContactListFilters): Promis
     .select(contactSelection)
     .from(contacts)
     .leftJoin(agencies, eq(contacts.agencyId, agencies.id))
+    .leftJoin(emailSuppressions, suppressionJoinCondition)
     .where(where)
     .orderBy(desc(contacts.createdAt));
 }
@@ -97,6 +110,7 @@ export async function listContactsByIds(ids: string[]): Promise<ContactRow[]> {
     .select(contactSelection)
     .from(contacts)
     .leftJoin(agencies, eq(contacts.agencyId, agencies.id))
+    .leftJoin(emailSuppressions, suppressionJoinCondition)
     .where(inArray(contacts.id, ids));
 }
 

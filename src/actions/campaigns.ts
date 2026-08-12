@@ -89,14 +89,18 @@ type AudienceSource = "CONTACT" | "EDD_CUSTOMER";
 export async function searchAudienceAction(
   source: AudienceSource,
   filters: ContactListFilters | EddCustomerListFilters
-): Promise<{ id: string; firstName: string | null; lastName: string | null; email: string | null }[]> {
+): Promise<{ id: string; firstName: string | null; lastName: string | null; email: string | null; isUnsubscribed: boolean }[]> {
   if (source === "CONTACT") {
     const rows = await listContactsForExport({ ...(filters as ContactListFilters), hasEmail: true });
-    return rows.slice(0, 500).map((r) => ({ id: r.id, firstName: r.firstName, lastName: r.lastName, email: r.email }));
+    return rows
+      .slice(0, 500)
+      .map((r) => ({ id: r.id, firstName: r.firstName, lastName: r.lastName, email: r.email, isUnsubscribed: r.isUnsubscribed }));
   }
 
   const rows = await listEddCustomersForExport(filters as EddCustomerListFilters);
-  return rows.slice(0, 500).map((r) => ({ id: r.id, firstName: r.firstName, lastName: r.lastName, email: r.email }));
+  return rows
+    .slice(0, 500)
+    .map((r) => ({ id: r.id, firstName: r.firstName, lastName: r.lastName, email: r.email, isUnsubscribed: r.isUnsubscribed }));
 }
 
 type NewRecipient = {

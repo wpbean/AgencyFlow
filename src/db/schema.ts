@@ -497,6 +497,7 @@ export const campaigns = sqliteTable("campaigns", {
   totalRecipients: integer("total_recipients").notNull().default(0),
   sentCount: integer("sent_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
+  skippedCount: integer("skipped_count").notNull().default(0),
   sentAt: integer("sent_at", { mode: "timestamp" }),
   ...timestamps,
 });
@@ -518,6 +519,14 @@ export const campaignRecipients = sqliteTable(
     error: text("error"),
     resendMessageId: text("resend_message_id"),
     sentAt: integer("sent_at", { mode: "timestamp" }),
+    deliveredAt: integer("delivered_at", { mode: "timestamp" }),
+    openedAt: integer("opened_at", { mode: "timestamp" }),
+    openCount: integer("open_count").notNull().default(0),
+    clickedAt: integer("clicked_at", { mode: "timestamp" }),
+    clickCount: integer("click_count").notNull().default(0),
+    bouncedAt: integer("bounced_at", { mode: "timestamp" }),
+    complainedAt: integer("complained_at", { mode: "timestamp" }),
+    unsubscribedAt: integer("unsubscribed_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -534,10 +543,41 @@ export const campaignRecipients = sqliteTable(
 export const emailSuppressions = sqliteTable("email_suppressions", {
   email: text("email").primaryKey(),
   reason: text("reason"),
+  // Attribution only — which campaign triggered this suppression, if known.
+  // Suppression itself stays global regardless of which campaign set it.
+  campaignId: text("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
 });
+
+export const CAMPAIGN_EVENT_TYPES = ["DELIVERED", "OPENED", "CLICKED", "BOUNCED", "COMPLAINED", "UNSUBSCRIBED"] as const;
+export type CampaignEventType = (typeof CAMPAIGN_EVENT_TYPES)[number];
+
+// Full event timeline for campaign analytics — one row per webhook/unsubscribe event.
+// campaignRecipients carries denormalized rollups (openedAt, openCount, ...) for
+// cheap aggregate queries; this table is the detail log behind them.
+export const campaignEvents = sqliteTable(
+  "campaign_events",
+  {
+    id: id(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => campaignRecipients.id, { onDelete: "cascade" }),
+    type: text("type").$type<CampaignEventType>().notNull(),
+    link: text("link"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => [
+    index("campaign_events_campaign_id_idx").on(t.campaignId),
+    index("campaign_events_recipient_id_idx").on(t.recipientId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // Inbox (conversations + messages) — replies to sent campaigns, correlated

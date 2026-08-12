@@ -4,24 +4,30 @@ import { getAgencyOptions, getContactFilterOptions } from "@/db/queries/contacts
 import { getEddProductOptions } from "@/db/queries/edd-customers";
 import { listTemplatesWithDesign } from "@/db/queries/templates";
 import { getConversationsWithMessagesByCampaign } from "@/db/queries/conversations";
+import { getCampaignAnalytics, getCampaignEventsOverTime, getCampaignTopLinks } from "@/db/queries/campaign-analytics";
 import { CampaignDetailHeader } from "@/components/campaigns/campaign-detail-header";
 import { CampaignComposeTab } from "@/components/campaigns/campaign-compose-tab";
 import { CampaignAudienceTab } from "@/components/campaigns/campaign-audience-tab";
 import { CampaignRepliesTab } from "@/components/campaigns/campaign-replies-tab";
+import { CampaignAnalyticsTab } from "@/components/campaigns/campaign-analytics-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata = { title: "Campaign" };
 
 export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [record, agencyOptions, contactFilterOptions, productOptions, savedTemplates, conversations] = await Promise.all([
-    getCampaignById(id),
-    getAgencyOptions(),
-    getContactFilterOptions(),
-    getEddProductOptions(),
-    listTemplatesWithDesign(),
-    getConversationsWithMessagesByCampaign(id),
-  ]);
+  const [record, agencyOptions, contactFilterOptions, productOptions, savedTemplates, conversations, analytics, eventsOverTime, topLinks] =
+    await Promise.all([
+      getCampaignById(id),
+      getAgencyOptions(),
+      getContactFilterOptions(),
+      getEddProductOptions(),
+      listTemplatesWithDesign(),
+      getConversationsWithMessagesByCampaign(id),
+      getCampaignAnalytics(id),
+      getCampaignEventsOverTime(id),
+      getCampaignTopLinks(id),
+    ]);
 
   if (!record) notFound();
 
@@ -40,6 +46,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             <TabsTrigger value="compose">Compose</TabsTrigger>
             <TabsTrigger value="audience">Audience ({recipients.length})</TabsTrigger>
             <TabsTrigger value="replies">Replies ({unreadReplies > 0 ? `${unreadReplies} new` : conversations.length})</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
           <TabsContent value="compose" className="mt-4">
             <CampaignComposeTab campaign={campaign} savedTemplates={savedTemplates} />
@@ -57,6 +64,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           </TabsContent>
           <TabsContent value="replies" className="mt-4">
             <CampaignRepliesTab conversations={conversations} />
+          </TabsContent>
+          <TabsContent value="analytics" className="mt-4">
+            <CampaignAnalyticsTab
+              campaignStatus={campaign.status}
+              analytics={analytics}
+              eventsOverTime={eventsOverTime}
+              topLinks={topLinks}
+            />
           </TabsContent>
         </Tabs>
       </div>

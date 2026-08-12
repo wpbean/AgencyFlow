@@ -6,11 +6,12 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import { listCampaigns } from "@/db/queries/campaigns";
 import { listTemplatesWithDesign } from "@/db/queries/templates";
+import { getCampaignListRates } from "@/db/queries/campaign-analytics";
 
 export const metadata = { title: "Campaigns" };
 
 export default async function CampaignsPage() {
-  const [campaigns, savedTemplates] = await Promise.all([listCampaigns(), listTemplatesWithDesign()]);
+  const [campaigns, savedTemplates, rates] = await Promise.all([listCampaigns(), listTemplatesWithDesign(), getCampaignListRates()]);
 
   return (
     <>
@@ -38,7 +39,7 @@ export default async function CampaignsPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((c) => (
-              <CampaignCard key={c.id} campaign={c} />
+              <CampaignCard key={c.id} campaign={c} rates={rates.get(c.id)} />
             ))}
           </div>
         )}

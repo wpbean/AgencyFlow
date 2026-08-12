@@ -28,6 +28,7 @@ export default async function EddCustomersPage({ searchParams }: { searchParams:
     q: typeof sp.q === "string" ? sp.q : undefined,
     productId: parseList(sp.productId),
     synced: sp.synced === "1" ? true : sp.synced === "0" ? false : undefined,
+    excludeUnsubscribed: sp.excludeUnsubscribed === "1" ? true : undefined,
   };
 
   const [{ rows, total, pageSize }, productOptions, counts] = await Promise.all([

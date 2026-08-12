@@ -12,11 +12,14 @@ export type CampaignRecipientVars = {
 
 // Every campaign send appends an unsubscribe link — this is unconditional (not a
 // per-campaign toggle) since these are marketing emails to purchased contact lists.
+// campaignId/recipientId are embedded in the unsubscribe link's signed token so a
+// resulting opt-out can be attributed back to the campaign/recipient it came from.
 export function buildCampaignEmail(
   subjectTemplate: string,
   bodyTemplate: string,
   vars: CampaignRecipientVars,
-  design?: EmailDesign | null
+  design?: EmailDesign | null,
+  attribution?: { campaignId?: string; recipientId?: string }
 ) {
   const renderVars = {
     first_name: vars.first_name || "there",
@@ -24,7 +27,7 @@ export function buildCampaignEmail(
     email: vars.email,
   };
   const subject = renderTemplate(subjectTemplate, renderVars);
-  const unsubscribeUrl = buildUnsubscribeUrl(vars.email);
+  const unsubscribeUrl = buildUnsubscribeUrl(vars.email, attribution);
 
   if (design) {
     const text = `${renderDesignToText(design, renderVars)}\n\n—\nDon't want these emails? Unsubscribe: ${unsubscribeUrl}`;

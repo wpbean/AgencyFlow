@@ -56,7 +56,8 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
         campaign.subject,
         campaign.body,
         { first_name: r.firstName, last_name: r.lastName, email: r.email },
-        campaign.design
+        campaign.design,
+        { campaignId: campaign.id, recipientId: r.id }
       );
       return {
         from,
@@ -98,6 +99,7 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
       status: failed > 0 && sent === 0 ? "FAILED" : "SENT",
       sentCount: campaign.sentCount + sent,
       failedCount: campaign.failedCount + failed,
+      skippedCount: campaign.skippedCount + toSkip.length,
       sentAt: new Date(),
       updatedAt: new Date(),
     })
