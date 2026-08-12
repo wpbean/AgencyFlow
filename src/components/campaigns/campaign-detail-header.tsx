@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, MoreHorizontal, Trash2 } from "lucide-react";
-import { deleteCampaignAction, duplicateCampaignAction } from "@/actions/campaigns";
+import { ArrowLeft, Copy, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { deleteCampaignAction, duplicateCampaignAction, cancelScheduledCampaignAction } from "@/actions/campaigns";
 import { CAMPAIGN_STATUS_META } from "@/lib/labels";
 import { ToneBadge } from "@/components/common/tone-badge";
 import { ConfirmDeleteDialog } from "@/components/common/confirm-delete-dialog";
@@ -31,7 +31,20 @@ export function CampaignDetailHeader({
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const router = useRouter();
+
+  async function handleCancelSchedule() {
+    setCanceling(true);
+    const result = await cancelScheduledCampaignAction(campaign.id);
+    setCanceling(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Schedule canceled — campaign is back to draft.");
+    router.refresh();
+  }
 
   async function handleDuplicate() {
     setDuplicating(true);
@@ -56,10 +69,29 @@ export function CampaignDetailHeader({
         <div className="min-w-0">
           <h1 className="truncate text-lg font-semibold tracking-tight">{campaign.name}</h1>
           <p className="truncate text-sm text-muted-foreground">{campaign.subject}</p>
+          {campaign.status === "SCHEDULED" && campaign.scheduledAt && (
+            <p className="truncate text-xs text-muted-foreground">
+              Starts {new Date(campaign.scheduledAt).toLocaleString()}
+              {campaign.dailyLimit ? ` · ${campaign.dailyLimit}/day` : ""}
+              {campaign.dailyLimit && campaign.dailySendTime ? ` at ${campaign.dailySendTime}` : ""}
+            </p>
+          )}
+          {campaign.status === "SENDING" && campaign.dailyLimit && (
+            <p className="truncate text-xs text-muted-foreground">
+              {campaign.sentCount} / {campaign.totalRecipients} sent · {campaign.dailyLimit}/day
+              {campaign.dailySendTime ? ` at ${campaign.dailySendTime}` : ""}, resumes tomorrow
+            </p>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <ToneBadge tone={CAMPAIGN_STATUS_META[campaign.status].tone}>{CAMPAIGN_STATUS_META[campaign.status].label}</ToneBadge>
+        {campaign.status === "SCHEDULED" && (
+          <Button type="button" variant="outline" size="sm" disabled={canceling} onClick={handleCancelSchedule}>
+            {canceling && <Loader2 className="size-4 animate-spin" />}
+            Cancel Schedule
+          </Button>
+        )}
         <CampaignSendDialog
           campaignId={campaign.id}
           campaignName={campaign.name}

@@ -71,6 +71,20 @@
       "when": 1786469486921,
       "tag": "0009_amusing_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1786553137996,
+      "tag": "0010_daffy_donald_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1786554843859,
+      "tag": "0011_add_campaign_daily_send_time",
+      "breakpoints": true
     }
   ]
 }

@@ -476,7 +476,7 @@ export const eddCustomerProducts = sqliteTable(
 // Campaigns (bulk email blasts to Contacts / EDD Customers, sent via Resend)
 // ---------------------------------------------------------------------------
 
-export const CAMPAIGN_STATUSES = ["DRAFT", "SENDING", "SENT", "FAILED"] as const;
+export const CAMPAIGN_STATUSES = ["DRAFT", "SCHEDULED", "SENDING", "SENT", "FAILED"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 
 export const CAMPAIGN_RECIPIENT_SOURCES = ["CONTACT", "EDD_CUSTOMER"] as const;
@@ -499,6 +499,12 @@ export const campaigns = sqliteTable("campaigns", {
   failedCount: integer("failed_count").notNull().default(0),
   skippedCount: integer("skipped_count").notNull().default(0),
   sentAt: integer("sent_at", { mode: "timestamp" }),
+  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+  dailyLimit: integer("daily_limit"),
+  // 24h "HH:MM" (server local time) — gates each day's throttled batch so it
+  // goes out around a consistent, recipient-friendly hour instead of firing
+  // as early as the first scheduler tick past midnight.
+  dailySendTime: text("daily_send_time"),
   ...timestamps,
 });
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { campaigns, campaignRecipients } from "@/db/schema";
 import { getSettings } from "@/lib/settings";
@@ -16,16 +16,40 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
-export async function sendCampaign(campaignId: string): Promise<{ sent: number; failed: number; skipped: number }> {
+// Guards against the scheduler tick and a manual "Send"/"Retry" click racing on the
+// same campaign — the app runs as a single process, so an in-memory lock is enough.
+const sendingLocks = new Set<string>();
+
+export async function sendCampaign(
+  campaignId: string,
+  opts?: { limit?: number }
+): Promise<{ sent: number; failed: number; skipped: number }> {
+  if (sendingLocks.has(campaignId)) return { sent: 0, failed: 0, skipped: 0 };
+  sendingLocks.add(campaignId);
+  try {
+    return await sendCampaignUnlocked(campaignId, opts);
+  } finally {
+    sendingLocks.delete(campaignId);
+  }
+}
+
+async function sendCampaignUnlocked(
+  campaignId: string,
+  opts?: { limit?: number }
+): Promise<{ sent: number; failed: number; skipped: number }> {
   const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
   if (!campaign) throw new Error("Campaign not found.");
   if (!campaign.fromEmail) throw new Error("Set a From email for this campaign before sending.");
 
-  const pending = await db
+  const allPending = await db
     .select()
     .from(campaignRecipients)
-    .where(and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, "PENDING")));
+    .where(and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, "PENDING")))
+    .orderBy(campaignRecipients.createdAt);
 
+  if (allPending.length === 0) return { sent: 0, failed: 0, skipped: 0 };
+
+  const pending = opts?.limit !== undefined ? allPending.slice(0, Math.max(0, opts.limit)) : allPending;
   if (pending.length === 0) return { sent: 0, failed: 0, skipped: 0 };
 
   await db.update(campaigns).set({ status: "SENDING", updatedAt: new Date() }).where(eq(campaigns.id, campaignId));
@@ -93,10 +117,17 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
     }
   }
 
+  const [{ count: pendingRemaining }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(campaignRecipients)
+    .where(and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, "PENDING")));
+
+  const status = pendingRemaining > 0 ? "SENDING" : failed > 0 && sent === 0 ? "FAILED" : "SENT";
+
   await db
     .update(campaigns)
     .set({
-      status: failed > 0 && sent === 0 ? "FAILED" : "SENT",
+      status,
       sentCount: campaign.sentCount + sent,
       failedCount: campaign.failedCount + failed,
       skippedCount: campaign.skippedCount + toSkip.length,

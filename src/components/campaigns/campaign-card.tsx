@@ -71,7 +71,8 @@ export function CampaignCard({ campaign, rates }: { campaign: CampaignRow; rates
           <div className="flex items-center gap-1.5">
             <Users className="size-3.5" />
             {campaign.totalRecipients} recipient{campaign.totalRecipients === 1 ? "" : "s"}
-            {campaign.status === "SENT" && ` · ${campaign.sentCount} sent`}
+            {(campaign.status === "SENT" || (campaign.status === "SENDING" && campaign.dailyLimit)) && ` · ${campaign.sentCount} sent`}
+            {campaign.status === "SCHEDULED" && campaign.scheduledAt && ` · starts ${new Date(campaign.scheduledAt).toLocaleDateString()}`}
             {campaign.failedCount > 0 && ` · ${campaign.failedCount} failed`}
           </div>
           <ToneBadge tone={CAMPAIGN_STATUS_META[campaign.status].tone} className="shrink-0">

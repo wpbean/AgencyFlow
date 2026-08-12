@@ -108,6 +108,7 @@ export const TEMPLATE_CATEGORY_META: Record<TemplateCategory, { label: string }>
 
 export const CAMPAIGN_STATUS_META: Record<CampaignStatus, { label: string; tone: Tone }> = {
   DRAFT: { label: "Draft", tone: "neutral" },
+  SCHEDULED: { label: "Scheduled", tone: "warning" },
   SENDING: { label: "Sending", tone: "info" },
   SENT: { label: "Sent", tone: "success" },
   FAILED: { label: "Failed", tone: "danger" },

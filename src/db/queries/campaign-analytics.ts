@@ -12,17 +12,17 @@ export async function getCampaignAnalytics(campaignId: string) {
   const [row] = await db
     .select({
       totalRecipients: sql<number>`count(*)`,
-      sent: sql<number>`sum(case when ${campaignRecipients.status} = 'SENT' then 1 else 0 end)`,
-      failed: sql<number>`sum(case when ${campaignRecipients.status} = 'FAILED' then 1 else 0 end)`,
-      skipped: sql<number>`sum(case when ${campaignRecipients.status} = 'SKIPPED' then 1 else 0 end)`,
-      delivered: sql<number>`sum(case when ${campaignRecipients.deliveredAt} is not null then 1 else 0 end)`,
-      opened: sql<number>`sum(case when ${campaignRecipients.openedAt} is not null then 1 else 0 end)`,
+      sent: sql<number>`coalesce(sum(case when ${campaignRecipients.status} = 'SENT' then 1 else 0 end), 0)`,
+      failed: sql<number>`coalesce(sum(case when ${campaignRecipients.status} = 'FAILED' then 1 else 0 end), 0)`,
+      skipped: sql<number>`coalesce(sum(case when ${campaignRecipients.status} = 'SKIPPED' then 1 else 0 end), 0)`,
+      delivered: sql<number>`coalesce(sum(case when ${campaignRecipients.deliveredAt} is not null then 1 else 0 end), 0)`,
+      opened: sql<number>`coalesce(sum(case when ${campaignRecipients.openedAt} is not null then 1 else 0 end), 0)`,
       opens: sql<number>`coalesce(sum(${campaignRecipients.openCount}), 0)`,
-      clicked: sql<number>`sum(case when ${campaignRecipients.clickedAt} is not null then 1 else 0 end)`,
+      clicked: sql<number>`coalesce(sum(case when ${campaignRecipients.clickedAt} is not null then 1 else 0 end), 0)`,
       clicks: sql<number>`coalesce(sum(${campaignRecipients.clickCount}), 0)`,
-      bounced: sql<number>`sum(case when ${campaignRecipients.bouncedAt} is not null then 1 else 0 end)`,
-      complained: sql<number>`sum(case when ${campaignRecipients.complainedAt} is not null then 1 else 0 end)`,
-      unsubscribed: sql<number>`sum(case when ${campaignRecipients.unsubscribedAt} is not null then 1 else 0 end)`,
+      bounced: sql<number>`coalesce(sum(case when ${campaignRecipients.bouncedAt} is not null then 1 else 0 end), 0)`,
+      complained: sql<number>`coalesce(sum(case when ${campaignRecipients.complainedAt} is not null then 1 else 0 end), 0)`,
+      unsubscribed: sql<number>`coalesce(sum(case when ${campaignRecipients.unsubscribedAt} is not null then 1 else 0 end), 0)`,
     })
     .from(campaignRecipients)
     .where(eq(campaignRecipients.campaignId, campaignId));

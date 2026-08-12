@@ -172,15 +172,61 @@ export async function clearRecipientsAction(campaignId: string) {
   revalidatePath(`/campaigns/${campaignId}`);
 }
 
-export async function sendCampaignAction(campaignId: string): Promise<{ error?: string; sent?: number; failed?: number; skipped?: number }> {
+// Handles all three "Send Campaign" flows from the send dialog: immediate,
+// daily-throttled, and scheduled-for-later. Persists scheduledAt/dailyLimit on the
+// campaign first so the scheduler tick can pick up where a throttled/deferred send
+// left off; only sends synchronously when the campaign should start right now.
+export async function scheduleCampaignAction(
+  campaignId: string,
+  opts: { scheduledAt?: Date; dailyLimit?: number; dailySendTime?: string }
+): Promise<{ error?: string; scheduled?: boolean; sent?: number; failed?: number; skipped?: number }> {
   try {
-    const result = await sendCampaign(campaignId);
+    const dailyLimit = opts.dailyLimit && opts.dailyLimit > 0 ? opts.dailyLimit : null;
+    const scheduledAt = opts.scheduledAt ?? null;
+    const startsInFuture = scheduledAt !== null && scheduledAt.getTime() > Date.now();
+    const dailySendTime =
+      dailyLimit && opts.dailySendTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(opts.dailySendTime)
+        ? opts.dailySendTime
+        : null;
+
+    await db
+      .update(campaigns)
+      .set({
+        scheduledAt,
+        dailyLimit,
+        dailySendTime,
+        ...(startsInFuture ? { status: "SCHEDULED" as const } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(campaigns.id, campaignId));
+
+    revalidatePath(`/campaigns/${campaignId}`);
+    revalidatePath("/campaigns");
+
+    if (startsInFuture) return { scheduled: true };
+
+    const result = await sendCampaign(campaignId, dailyLimit ? { limit: dailyLimit } : undefined);
     revalidatePath(`/campaigns/${campaignId}`);
     revalidatePath("/campaigns");
     return result;
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to send campaign." };
   }
+}
+
+export async function cancelScheduledCampaignAction(campaignId: string): Promise<{ error?: string }> {
+  const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
+  if (!campaign) return { error: "Campaign not found." };
+  if (campaign.status !== "SCHEDULED") return { error: "Campaign is not scheduled." };
+
+  await db
+    .update(campaigns)
+    .set({ status: "DRAFT", scheduledAt: null, updatedAt: new Date() })
+    .where(eq(campaigns.id, campaignId));
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath("/campaigns");
+  return {};
 }
 
 // Resets FAILED recipients back to PENDING so a failed campaign can be re-sent,
